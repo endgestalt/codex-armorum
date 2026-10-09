@@ -1,0 +1,8 @@
+# Claude-Code-Skill und lokale Einstellungen bleiben auf dem PC
+.claude/
+
+# System- und Editor-Dateien
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp

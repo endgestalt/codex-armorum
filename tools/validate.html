@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Datenprüfung – Codex Armorum</title>
+  <style>
+    :root { --bg: #14110e; --panel: #1f1a15; --line: #3b3025; --text: #e9dfc8; --dim: #a89a80; --ok: #6fa04c; --err: #c8443c; --warn: #c9a227; }
+    @media (prefers-color-scheme: light) { :root { --bg: #f4ecda; --panel: #fffaf0; --line: #d6c5a0; --text: #2a2016; --dim: #6a5a44; } }
+    body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, 'Segoe UI', sans-serif; }
+    h1 { font-size: 1.3rem; margin: 0 0 4px; } .dim { color: var(--dim); }
+    .summary { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+    .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; min-width: 120px; }
+    .box b { display: block; font-size: 1.4rem; }
+    .ok { color: var(--ok); } .err { color: var(--err); } .warn { color: var(--warn); }
+    table { border-collapse: collapse; width: 100%; background: var(--panel); }
+    th, td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+    th { position: sticky; top: 0; background: var(--panel); }
+    td.num { text-align: right; white-space: nowrap; }
+    ul { margin: 0; padding-left: 1.1em; }
+    section { margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Datenprüfung – Codex Armorum</h1>
+  <p class="dim">Prüft alle Beispielarmeen mit den Daten im Projekt (ohne persönliche Punkte/Ausrüstung aus dem Browser).
+    Ziel: jede Armee 1.950–2.000 Punkte, keine Fehler. Hinweise (gelb) sind Empfehlungen.</p>
+  <div id="out">Lade Daten …</div>
+
+  <script>window.WH40K_EPHEMERAL = true;</script>
+  <script src="../assets/js/core.js"></script>
+  <script src="../data/config.js"></script>
+  <script src="../data/manifest.js"></script>
+  <script src="../data/images.js"></script>
+  <script src="../data/datasheets.js"></script>
+  <script>
+    (async function () {
+      const W = window.WH40K;
+      W.config.factionPath = '../data/factions/';
+      const failed = await W.loadFactions();
+      const LO = 1950, HI = 2000;
+      const esc = W.util.esc;
+      const rows = [];
+      const result = { armies: 0, errors: 0, hints: 0, pointsOutOfRange: 0, failedFiles: failed, missingSheet: [], missingImage: [], missingStats: [], details: [] };
+      W.factions.forEach((f) => f.armies.forEach((a) => {
+        const c = W.calc.army(f, a);
+        const errors = c.warnings.filter((w) => w.level === 'error').map((w) => w.text);
+        const hints = c.warnings.filter((w) => w.level !== 'error').map((w) => w.text);
+        const oor = c.total < LO || c.total > HI;
+        result.armies++; result.errors += errors.length; result.hints += hints.length; if (oor) result.pointsOutOfRange++;
+        result.details.push({ army: f.id + '/' + a.id, total: c.total, dp: c.dp, errors, hints });
+        rows.push('<tr><td>' + esc(f.name) + '</td><td>' + esc(a.name) + ' <span class="dim">(' + esc(a.id) + ')</span></td>' +
+          '<td class="num ' + (oor ? 'err' : 'ok') + '">' + c.total + '</td><td class="num ' + (c.dp > c.size.dp ? 'err' : '') + '">' + c.dp + '</td>' +
+          '<td>' + (errors.length ? '<ul class="err">' + errors.map((e) => '<li>' + esc(e) + '</li>').join('') + '</ul>' : '<span class="ok">✔</span>') +
+          (hints.length ? '<ul class="warn">' + hints.map((e) => '<li>' + esc(e) + '</li>').join('') + '</ul>' : '') + '</td></tr>');
+        a.units.forEach((u) => {
+          const key = f.id + '|' + u.name;
+          const s = W.util.sheetOf(f, u);
+          if (!s) result.missingSheet.push(key);
+          else if (!s.stats) result.missingStats.push(key);
+          if (!W.util.productOf(u) && !u.image) result.missingImage.push(key);
+        });
+      }));
+      ['missingSheet', 'missingImage', 'missingStats'].forEach((k) => { result[k] = [...new Set(result[k])].sort(); });
+      window.__VALIDATION = result;   // für automatisierte Auswertung (z. B. durch Claude)
+
+      const allOk = !result.errors && !result.pointsOutOfRange && !failed.length;
+      document.getElementById('out').innerHTML =
+        '<div class="summary">' +
+          '<div class="box"><span class="dim">Gesamt</span><b class="' + (allOk ? 'ok' : 'err') + '">' + (allOk ? '✔ in Ordnung' : '✖ Probleme') + '</b></div>' +
+          '<div class="box"><span class="dim">Armeen</span><b>' + result.armies + '</b></div>' +
+          '<div class="box"><span class="dim">Außerhalb ' + LO + '–' + HI + '</span><b class="' + (result.pointsOutOfRange ? 'err' : 'ok') + '">' + result.pointsOutOfRange + '</b></div>' +
+          '<div class="box"><span class="dim">Fehler</span><b class="' + (result.errors ? 'err' : 'ok') + '">' + result.errors + '</b></div>' +
+          '<div class="box"><span class="dim">Hinweise</span><b class="' + (result.hints ? 'warn' : 'ok') + '">' + result.hints + '</b></div>' +
+        '</div>' +
+        (failed.length ? '<p class="err">Nicht ladbare Fraktionsdateien: ' + esc(failed.join(', ')) + ' (Syntaxfehler?)</p>' : '') +
+        '<table><thead><tr><th>Fraktion</th><th>Armee</th><th>Punkte</th><th>DP</th><th>Befunde</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>' +
+        '<section><h2>Datenlücken</h2>' +
+          '<p><b>Ohne Datenblatt-Info</b> (Name passt nicht zu Wahapedia?): ' + (result.missingSheet.length ? '<span class="err">' + esc(result.missingSheet.join(', ')) + '</span>' : '<span class="ok">keine</span>') + '</p>' +
+          '<p><b>Ohne Profilwerte:</b> ' + (result.missingStats.length ? esc(result.missingStats.join(', ')) : '<span class="ok">keine</span>') + '</p>' +
+          '<p><b>Ohne Produktfoto</b> (Platzhalter, unkritisch): ' + result.missingImage.length + ' <span class="dim">' + esc(result.missingImage.join(', ')) + '</span></p>' +
+        '</section>';
+    })();
+  </script>
+</body>
+</html>

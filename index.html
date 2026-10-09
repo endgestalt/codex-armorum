@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Armorum – Warhammer 40k Armee-Kompendium</title>
+  <meta name="description" content="Fraktionen und Beispielarmeen für Warhammer 40,000 (11. Edition) mit Punkten, Strategien und Links.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700;900&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/theme.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <svg class="emblem" viewBox="0 0 120 60" aria-hidden="true">
+        <g fill="currentColor">
+          <path d="M60 8 L66 22 L60 52 L54 22 Z"/>
+          <path d="M54 20 C40 8 22 6 4 12 C18 14 26 18 30 22 C20 22 12 26 6 32 C18 30 28 30 36 32 C28 36 22 42 20 48 C30 42 42 38 52 38 Z"/>
+          <path d="M66 20 C80 8 98 6 116 12 C102 14 94 18 90 22 C100 22 108 26 114 32 C102 30 92 30 84 32 C92 36 98 42 100 48 C90 42 78 38 68 38 Z"/>
+          <circle cx="60" cy="22" r="5" fill="var(--bg)"/>
+          <circle cx="60" cy="22" r="3"/>
+        </g>
+      </svg>
+      <div>
+        <h1>Codex Armorum</h1>
+        <p class="subtitle">Warhammer 40,000 · Fraktionen &amp; Beispielarmeen · <span id="editionInfo"></span></p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn ghost" id="btnCollection" title="Sammlung über alle Fraktionen (S)">▣ Sammlung</button>
+      <button class="btn ghost" id="btnTheme" title="Farbschema wechseln (T)">☾ Schema</button>
+      <button class="btn ghost" id="btnHelp" title="Hilfe (?)">? Hilfe</button>
+    </div>
+  </header>
+
+  <section class="toolbar" aria-label="Auswahl">
+    <div class="field">
+      <label for="factionSelect">Fraktion</label>
+      <select id="factionSelect"></select>
+    </div>
+    <div class="field grow search">
+      <label for="globalSearch">Suche</label>
+      <input id="globalSearch" type="search" autocomplete="off" placeholder="Einheit oder Fraktion suchen …   [ / ]">
+      <div id="searchResults" class="search-results" hidden></div>
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button class="btn" id="btnGrid" aria-expanded="false">▦ Alle Fraktionen</button>
+    </div>
+  </section>
+
+  <section id="factionGrid" class="faction-grid" hidden></section>
+
+  <main id="main">
+    <section id="factionPanel" class="panel faction-panel"></section>
+    <nav id="armyTabs" class="army-tabs" aria-label="Armeen"></nav>
+    <section id="armyPanel"></section>
+  </main>
+
+  <footer class="site-footer">
+    <p id="pointsNote"></p>
+    <p>
+      Inoffizielles Fan-Werkzeug ohne Verbindung zu Games Workshop. Warhammer 40,000 und alle zugehörigen Namen sind
+      Marken von Games Workshop Ltd. Quellen: <a href="https://www.warhammer-community.com/de-de/" target="_blank" rel="noopener">Warhammer Community</a>,
+      <a href="https://wahapedia.ru/wh40k11ed/the-rules/core-rules/" target="_blank" rel="noopener">Wahapedia</a>,
+      <a href="https://wh40k.lexicanum.com/" target="_blank" rel="noopener">Lexicanum</a>.
+    </p>
+  </footer>
+
+  <!-- Dialoge -->
+  <dialog id="dlgText" class="dlg">
+    <form method="dialog" class="dlg-inner">
+      <h3>Armeeliste als Text</h3>
+      <textarea id="listText" rows="18" readonly></textarea>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="btnCopy">⧉ In Zwischenablage</button>
+        <button class="btn ghost">Schließen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlgCompare" class="dlg wide">
+    <form method="dialog" class="dlg-inner">
+      <h3>Armeen vergleichen</h3>
+      <div class="compare-pick">
+        <select id="cmpA"></select>
+        <span>vs.</span>
+        <select id="cmpB"></select>
+      </div>
+      <div id="compareBody"></div>
+      <div class="dlg-actions"><button class="btn ghost">Schließen</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlgCollection" class="dlg wide">
+    <form method="dialog" class="dlg-inner">
+      <h3>Meine Sammlung</h3>
+      <label class="muted small"><input type="checkbox" id="colAll"> Auch Fraktionen ohne Sammlung anzeigen</label>
+      <div id="collectionBody"></div>
+      <div class="dlg-actions"><button class="btn ghost">Schließen</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlgHelp" class="dlg">
+    <form method="dialog" class="dlg-inner">
+      <h3>Bedienung</h3>
+      <ul class="help-list">
+        <li><b>Fraktion &amp; Armee</b> wählst du oben bzw. über die Reiter. Die Adresszeile merkt sich die Auswahl (Lesezeichen möglich).</li>
+        <li><b>Suche</b> <kbd>/</kbd> findet Einheiten über alle Fraktionen hinweg und springt direkt zur Zeile.</li>
+        <li><b>Punkte anpassen:</b> Wert in der Spalte „Pkt./Einheit“ ändern – gilt für diese Einheit in allen Listen der Fraktion. Geänderte Werte sind markiert und lassen sich zurücksetzen.</li>
+        <li><b>Sammlung:</b> Kreis-Symbol klicken: Fehlt → Vorhanden → Bemalt. Daneben trägst du ein, wie viele Einheiten du besitzt. „▣ Sammlung“ <kbd>S</kbd> zeigt über alle Fraktionen, welche Armeen du schon spielen kannst und was noch fehlt.</li>
+        <li><b>Anführer &amp; Einsteigeplan</b> unter der Tabelle prüfen, ob Charaktere ihre Einheit laut Datenblatt führen dürfen, und schlagen vor, wer in welchen Transporter passt.</li>
+        <li><b>Eigene Bilder:</b> auf das Platzhalterbild klicken und eine Bild-URL einfügen (z. B. von deinem eigenen Foto oder aus dem Shop).</li>
+        <li><b>Rollenfilter &amp; Sortierung:</b> Chips über der Tabelle bzw. Klick auf die Spaltenköpfe.</li>
+        <li><b>Export/Import</b> sichert deine Punkte, Sammlung, Bilder und Notizen als JSON-Datei.</li>
+        <li>Tastatur: <kbd>/</kbd> Suche · <kbd>←</kbd>/<kbd>→</kbd> Armee wechseln · <kbd>T</kbd> Farbschema · <kbd>?</kbd> Hilfe · <kbd>Esc</kbd> schließen</li>
+      </ul>
+      <div class="dlg-actions"><button class="btn ghost">Schließen</button></div>
+    </form>
+  </dialog>
+
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <figure id="imgPreview" class="img-preview" hidden><img alt=""><figcaption></figcaption></figure>
+
+  <script src="assets/js/core.js"></script>
+  <script src="data/config.js"></script>
+  <script src="data/manifest.js"></script>
+  <script src="data/images.js"></script>
+  <script src="data/datasheets.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
